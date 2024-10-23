@@ -62,7 +62,7 @@ export function ExpenseTracker() {
 
             <section className="flex flex-col gap-4">
                 <h2 className="text-lg font-semibold border-b-2">Add new transaction</h2>
-                <TransactionForm onSubmit={(name, amount) => setTransactions(transactions.concat({ name, amount }))}></TransactionForm>
+                <TransactionForm onSubmit={(name, amount) => setTransactions([{name, amount}, ...transactions])}></TransactionForm>
             </section>
         </div>
     )
