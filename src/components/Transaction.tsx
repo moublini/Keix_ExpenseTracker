@@ -1,7 +1,4 @@
-export interface TransactionObject {
-  name: string,
-  amount: number,
-}
+import { TransactionObject } from "../../server";
 
 export interface TransactionProps {
     onDelete: () => void,

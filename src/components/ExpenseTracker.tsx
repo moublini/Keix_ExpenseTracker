@@ -1,29 +1,28 @@
-import { useState, useEffect } from "react";
-import { TransactionObject, Transaction } from "./Transaction";
+import { Transaction } from "./Transaction";
 import { TransactionForm } from "./TransactionForm";
+import { trpc } from '../trpc';
 
 export function ExpenseTracker() {
-    const [ transactions, setTransactions ] = useState([
-        { amount: 500, name: 'Cash' },
-        { amount: -40, name: 'Book' },
-        { amount: -200, name: 'Camera' },
-    ] as TransactionObject[]);
+    const transactions = trpc.getManyTransactions.useQuery();
+    const balance = trpc.getBalance.useQuery();
+    const income = trpc.getIncome.useQuery();
+    const expense = trpc.getExpense.useQuery();
 
-    const [ balance, setBalance ] = useState(0);
-    const [ income, setIncome ] = useState(0);
+    function updateTransactionData() {
+        transactions.refetch();
+        balance.refetch();
+        income.refetch();
+        expense.refetch();
+    }
 
-    useEffect(() => {
-        console.log('effect called'); // Why is it called twice on page load?
-        let newBalance = 0, newIncome = 0;
-        for (const transaction of transactions) {
-            newBalance += transaction.amount;
-            if (transaction.amount > 0)
-                newIncome += transaction.amount;
-        }
+    const addTransaction = trpc.addTransaction.useMutation({
+        onSuccess: updateTransactionData,
+    });
 
-        setBalance(newBalance);
-        setIncome(newIncome);
-    }, [ transactions ])
+    const deleteTransaction = trpc.deleteTransaction.useMutation({
+        onSuccess: updateTransactionData,
+    });
+
 
     return (
         <div className="max-w-xl flex flex-col gap-8 p-4">
@@ -32,17 +31,17 @@ export function ExpenseTracker() {
             <section className="flex flex-col gap-4">
                 <hgroup>
                     <h2>YOUR BALANCE</h2>
-                    <p className="text-3xl"><strong>${balance.toFixed(2)}</strong></p>
+                    <p className="text-3xl"><strong>${balance.data}</strong></p>
                 </hgroup>
 
                 <div className="rounded-md bg-white shadow-md flex">
                     <div className="text-center p-4 flex-1">
                         <h3 className="balance__data-title">Income</h3>
-                        <span className="text-green-400">${income.toFixed(2)}</span>
+                        <span className="text-green-400">${income.data}</span>
                     </div>
                     <div className="text-center p-4 flex-1">
                         <h3 className="balance__data-title">Expense</h3>
-                        <span className="text-red-600">${(income - balance).toFixed(2)}</span>
+                        <span className="text-red-600">${expense.data}</span>
                     </div>
                 </div>
             </section>
@@ -51,9 +50,9 @@ export function ExpenseTracker() {
                 <h2 className="text-lg font-semibold border-b-2">History</h2>
                 <ul className="flex flex-col gap-2">
                     {
-                        transactions.map((transaction, index) => (
+                        transactions.data?.map?.((transaction, index) => (
                             <li key={`history-item-${index}`} >
-                                <Transaction onDelete={() => { setTransactions([ ...transactions.slice(0, index), ...transactions.slice(index + 1) ]) }} obj={transaction}></Transaction>
+                                <Transaction onDelete={() => { deleteTransaction.mutate(transaction.id) }} obj={transaction}></Transaction>
                             </li>
                         ))
                     }
@@ -62,7 +61,7 @@ export function ExpenseTracker() {
 
             <section className="flex flex-col gap-4">
                 <h2 className="text-lg font-semibold border-b-2">Add new transaction</h2>
-                <TransactionForm onSubmit={(name, amount) => setTransactions([{name, amount}, ...transactions])}></TransactionForm>
+                <TransactionForm onSubmit={(name, amount) => { addTransaction.mutate({ name, amount }) }}></TransactionForm>
             </section>
         </div>
     )
