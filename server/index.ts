@@ -1,78 +1,81 @@
 import { z } from 'zod';
 import cors from 'cors';
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
-import { procedure, router } from "./trpc";
+import { protectedProcedure, publicProcedure, router } from "./trpc";
+import { PrismaClient } from '@prisma/client';
+import { createContext } from './context';
 
-export interface TransactionObject {
-    id: number,
-    name: string,
-    amount: number,
-}
-
-let nextId = 0;
-let balance = 0;
-let income = 0;
-let expense = 0;
-let transactions: TransactionObject[] = [];
+const prisma = new PrismaClient();
 
 const appRouter = router({
-    getIncome: procedure
-        .query(async () => income),
+    /* Public Procedures */
+    getManyTransactions: publicProcedure
+        .query(async () => await prisma.transactions.findMany()),
 
-    getExpense: procedure
-        .query(async () => expense),
-
-    getBalance: procedure
-        .query(async () => balance),
-
-    getManyTransactions: procedure
-        .query(async () => transactions),
-
-    getTransaction: procedure
+    getTransaction: publicProcedure
         .input(z.number())
         .query(async (opts) => {
             const inputId = opts.input
-            return transactions.find(transaction => transaction.id === inputId);
+            return await prisma.transactions.findFirst({
+                where: { id: inputId, }
+            })
         }),
 
-    addTransaction: procedure
+    getUserInfo: protectedProcedure
+        .query(async (opts) => {
+            const { ctx } = opts;
+            return await prisma.users.findFirst({
+                where: { id: ctx.userId },
+            });
+        }),
+
+    getUserTransactions: protectedProcedure
+        .query(async (opts) => {
+            const { ctx } = opts;
+            return await prisma.transactions.findMany({
+                where: { user_id: ctx.userId },
+            })
+        }),
+
+    addTransaction: protectedProcedure
         .input(z.object({ name: z.string(), amount: z.number() }))
         .mutation(async (opts) => {
-            const transactionData = opts.input;
-            const newTransaction: TransactionObject = { id: nextId, ...transactionData };
+            const { ctx, input } = opts;
+            const transaction = await prisma.transactions.create({
+                data: { user_id: ctx.userId, ...input },
+            });
 
-            nextId++;
-            balance += newTransaction.amount;
+            // Update user's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: opts.ctx.userId, },
+                data: {
+                    balance: { increment: transaction.amount, },
+                    income: { increment: transaction.amount > 0 ? transaction.amount : 0 },
+                    expense: { increment: transaction.amount < 0 ? -transaction.amount : 0 },
+                },
+            });
 
-            if (newTransaction.amount > 0)
-                income += newTransaction.amount;
-            else
-                expense -= newTransaction.amount;
-
-            transactions.push(newTransaction);
-
-            return newTransaction;
+            return transaction;
         }),
 
-    deleteTransaction: procedure
+    deleteTransaction: protectedProcedure
         .input(z.number())
         .mutation(async (opts) => {
-            const transactionId = opts.input;
-            const transactionIndex = transactions.findIndex(transaction => transaction.id === transactionId);
-            if (transactionIndex === -1)
-                return undefined;
+            const transaction = await prisma.transactions.delete({
+                where: { id: opts.input },
+            })
 
-            const transactionToDelete = transactions[transactionIndex];
-            balance -= transactionToDelete.amount;
+            // Update user's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: opts.ctx.userId, },
+                data: {
+                    balance: { decrement: transaction.amount, },
+                    income: { decrement: transaction.amount > 0 ? transaction.amount : 0 },
+                    expense: { decrement: transaction.amount < 0 ? -transaction.amount : 0 },
+                },
+            })
 
-            if (transactionToDelete.amount > 0)
-                income -= transactionToDelete.amount;
-            else
-                expense += transactionToDelete.amount;
-
-            transactions = [...transactions.slice(0, transactionIndex), ...transactions.slice(transactionIndex + 1)]
-
-            return 
+            return transaction;
         }),
 })
 
@@ -81,6 +84,7 @@ export type AppRouter = typeof appRouter;
 const server = createHTTPServer({
     router: appRouter,
     middleware: cors(),
+    createContext,
 });
 
 server.listen(8080);

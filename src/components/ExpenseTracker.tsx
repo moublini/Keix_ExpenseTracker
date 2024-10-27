@@ -3,16 +3,12 @@ import { TransactionForm } from "./TransactionForm";
 import { trpc } from '../trpc';
 
 export function ExpenseTracker() {
-    const transactions = trpc.getManyTransactions.useQuery();
-    const balance = trpc.getBalance.useQuery();
-    const income = trpc.getIncome.useQuery();
-    const expense = trpc.getExpense.useQuery();
+    const transactions = trpc.getUserTransactions.useQuery();
+    const user = trpc.getUserInfo.useQuery()
 
     function updateTransactionData() {
         transactions.refetch();
-        balance.refetch();
-        income.refetch();
-        expense.refetch();
+        user.refetch();
     }
 
     const addTransaction = trpc.addTransaction.useMutation({
@@ -23,25 +19,25 @@ export function ExpenseTracker() {
         onSuccess: updateTransactionData,
     });
 
-
     return (
         <div className="max-w-xl flex flex-col gap-8 p-4">
             <h1 className="text-center text-3xl font-bold">Expense Tracker</h1>
+            <h2 className="text-center text-xl">Welcome back, {user.data?.name}.</h2>
 
             <section className="flex flex-col gap-4">
                 <hgroup>
                     <h2>YOUR BALANCE</h2>
-                    <p className="text-3xl"><strong>${balance.data}</strong></p>
+                    <p className="text-3xl"><strong>${user.data?.balance}</strong></p>
                 </hgroup>
 
                 <div className="rounded-md bg-white shadow-md flex">
                     <div className="text-center p-4 flex-1">
                         <h3 className="balance__data-title">Income</h3>
-                        <span className="text-green-400">${income.data}</span>
+                        <span className="text-green-400">${user.data?.income}</span>
                     </div>
                     <div className="text-center p-4 flex-1">
                         <h3 className="balance__data-title">Expense</h3>
-                        <span className="text-red-600">${expense.data}</span>
+                        <span className="text-red-600">${user.data?.expense}</span>
                     </div>
                 </div>
             </section>

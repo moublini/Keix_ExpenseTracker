@@ -11,6 +11,9 @@ function App() {
     links: [
       httpBatchLink({
         url: 'http://localhost:8080',
+        headers: {
+          authorization: 'Basic moublini:admin',
+        }
       }),
     ]
   }));
