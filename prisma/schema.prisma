@@ -8,25 +8,25 @@ datasource db {
 }
 
 model transactions {
-  id      Int    @id @default(autoincrement())
-  name    String
-  amount  Float
-  sender_user_id Int @default(0)
-  receiver_user_id Int @default(0)
-  timestamp DateTime
+  id               Int      @id @default(autoincrement())
+  name             String
+  amount           Float
+  sender_user_id   Int      @default(0)
+  receiver_user_id Int      @default(0)
+  timestamp        DateTime
 
-  sender_user  users @relation("Sender", fields: [sender_user_id], references: [id])
-  receiver_user  users @relation("Receiver", fields: [receiver_user_id], references: [id])
+  sender_user   users @relation("Sender", fields: [sender_user_id], references: [id])
+  receiver_user users @relation("Receiver", fields: [receiver_user_id], references: [id])
 }
 
 model users {
-  id           Int            @id @default(autoincrement())
-  name         String         @unique
-  password     String
-  balance      Float          @default(0) @db.Real
-  income       Float          @default(0) @db.Real
-  expense      Float          @default(0) @db.Real
-  
-  sender_transactions transactions[] @relation("Sender")
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  password String
+  balance  Float  @default(0) @db.Real
+  income   Float  @default(0) @db.Real
+  expense  Float  @default(0) @db.Real
+
+  sender_transactions   transactions[] @relation("Sender")
   receiver_transactions transactions[] @relation("Receiver")
 }

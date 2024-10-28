@@ -24,7 +24,7 @@ function App() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <main className="h-full flex items-center justify-center">
+        <main className="h-full flex gap-8 items-center justify-center">
           <Auth></Auth>
           <ExpenseTracker></ExpenseTracker>
         </main>

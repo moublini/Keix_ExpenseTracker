@@ -28,8 +28,10 @@ export function Auth() {
             <label htmlFor="auth-password">Password</label>
             <input className="rounded-md border p-2" type="text" id="auth-password" value={password} onChange={e => setPassword(e.target.value)} />
 
-            <label htmlFor="auth-register">Register?</label>
-            <input type="checkbox" id="auth-register" onChange={e => setIsRegistering(e.target.checked)}/>
+            <div className="flex gap-4">
+                <label htmlFor="auth-register">Register?</label>
+                <input type="checkbox" id="auth-register" onChange={e => setIsRegistering(e.target.checked)}/>
+            </div>
 
             <button className="text-white rounded-md bg-purple-400 p-2" type="submit">{ isRegistering ? 'Register' : 'Login' }</button>
         </form>

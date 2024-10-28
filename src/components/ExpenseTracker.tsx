@@ -20,6 +20,13 @@ export function ExpenseTracker() {
         onSuccess: updateTransactionData,
     });
 
+    if (!user.data)
+        return (
+            <div className="max-w-xl h-full flex items-center justify-center">
+                <h1 className="text-center text-3xl font-bold">Login to access your transactions.</h1>
+            </div>
+        );
+
     return (
         <div className="max-w-xl flex flex-col gap-8 p-4">
             <h1 className="text-center text-3xl font-bold">Expense Tracker</h1>
@@ -27,7 +34,7 @@ export function ExpenseTracker() {
 
             <section className="flex flex-col gap-4">
                 <hgroup>
-                    <h2>YOUR BALANCE {user.data?.balance && user.data.balance < 0 && "Dumbass, you broke!" }</h2>
+                    <h2>YOUR BALANCE {(user.data?.balance && user.data.balance < 0) ? "(Dumbass, you broke!)" : "" }</h2>
                     <p className="text-3xl"><strong>${user.data?.balance}</strong></p>
                 </hgroup>
 

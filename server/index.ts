@@ -55,7 +55,6 @@ const appRouter = router({
         }))
         .mutation(async (opts) => {
             const { input: newUserData } = opts;
-            console.log(newUserData)
             return await prisma.users.create({ data: newUserData });
         }),
 
@@ -94,9 +93,6 @@ const appRouter = router({
                 },
             });
 
-            console.log(`users: ${transaction.sender_user_id}, ${transaction.receiver_user_id}`)
-
-            console.log("about to update users...")
             // Update sender's balance, income, expense and transactions list.
             await prisma.users.update({
                 where: { id: transaction.sender_user_id },
@@ -105,7 +101,7 @@ const appRouter = router({
                     expense: { increment: transaction.amount },
                 },
             });
-            console.log("modified sender's data")
+            
             // Update receiver's balance, income, expense and transactions list.
             await prisma.users.update({
                 where: { id: transaction.receiver_user_id },
@@ -114,7 +110,6 @@ const appRouter = router({
                     income: { increment: transaction.amount },
                 },
             });
-            console.log("modified receiver's data")
 
             return transaction;
         }),
