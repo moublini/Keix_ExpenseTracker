@@ -2,10 +2,9 @@ import { z } from 'zod';
 import cors from 'cors';
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import { protectedProcedure, publicProcedure, router } from "./trpc";
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma_client';
 import { createContext } from './context';
-
-const prisma = new PrismaClient();
+import { TRPCError } from '@trpc/server';
 
 const appRouter = router({
     /* Public Procedures */
@@ -21,39 +20,101 @@ const appRouter = router({
             })
         }),
 
+    getManyUsers: publicProcedure
+        .query(async () => {
+            return await prisma.users.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    balance: true,
+                    income: true,
+                    expense: true,
+                }
+            })
+        }),
+
+    getUserById: protectedProcedure
+        .input(z.number())
+        .query(async (opts) => {
+            const id = opts.input;
+            return await prisma.users.findFirst({ where: { id }, });
+        }),
+
     getUserInfo: protectedProcedure
         .query(async (opts) => {
-            const { ctx } = opts;
+            const { userData } = opts.ctx;
             return await prisma.users.findFirst({
-                where: { id: ctx.userId },
+                where: { id: userData.id },
             });
+        }),
+
+    addUser: publicProcedure
+        .input(z.object({
+            name: z.string(),
+            password: z.string(),
+        }))
+        .mutation(async (opts) => {
+            const { input: newUserData } = opts;
+            console.log(newUserData)
+            return await prisma.users.create({ data: newUserData });
         }),
 
     getUserTransactions: protectedProcedure
         .query(async (opts) => {
-            const { ctx } = opts;
+            const { userData } = opts.ctx;
             return await prisma.transactions.findMany({
-                where: { user_id: ctx.userId },
-            })
+                where: {
+                    OR: [
+                        { sender_user_id: userData.id },
+                        { receiver_user_id: userData.id },
+                    ],
+                },
+            });
         }),
 
     addTransaction: protectedProcedure
-        .input(z.object({ name: z.string(), amount: z.number() }))
+        .input(z.object({
+            name: z.string(),
+            amount: z.number(),
+            receiver_user_id: z.number(),
+        }))
         .mutation(async (opts) => {
             const { ctx, input } = opts;
-            const transaction = await prisma.transactions.create({
-                data: { user_id: ctx.userId, ...input },
-            });
+            if (input.amount < 0)
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: "A transaction's amount can't be negative.",
+                });
 
-            // Update user's balance, income, expense and transactions list.
-            await prisma.users.update({
-                where: { id: opts.ctx.userId, },
+            const transaction = await prisma.transactions.create({
                 data: {
-                    balance: { increment: transaction.amount, },
-                    income: { increment: transaction.amount > 0 ? transaction.amount : 0 },
-                    expense: { increment: transaction.amount < 0 ? -transaction.amount : 0 },
+                    timestamp: new Date(),
+                    sender_user_id: ctx.userData.id,
+                    ...input,
                 },
             });
+
+            console.log(`users: ${transaction.sender_user_id}, ${transaction.receiver_user_id}`)
+
+            console.log("about to update users...")
+            // Update sender's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: transaction.sender_user_id },
+                data: {
+                    balance: { decrement: transaction.amount },
+                    expense: { increment: transaction.amount },
+                },
+            });
+            console.log("modified sender's data")
+            // Update receiver's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: transaction.receiver_user_id },
+                data: {
+                    balance: { increment: transaction.amount },
+                    income: { increment: transaction.amount },
+                },
+            });
+            console.log("modified receiver's data")
 
             return transaction;
         }),
@@ -61,19 +122,40 @@ const appRouter = router({
     deleteTransaction: protectedProcedure
         .input(z.number())
         .mutation(async (opts) => {
+            const { userData } = opts.ctx;
             const transaction = await prisma.transactions.delete({
-                where: { id: opts.input },
-            })
-
-            // Update user's balance, income, expense and transactions list.
-            await prisma.users.update({
-                where: { id: opts.ctx.userId, },
-                data: {
-                    balance: { decrement: transaction.amount, },
-                    income: { decrement: transaction.amount > 0 ? transaction.amount : 0 },
-                    expense: { decrement: transaction.amount < 0 ? -transaction.amount : 0 },
+                where: {
+                    id: opts.input,
+                    OR: [
+                        { sender_user_id: userData.id },
+                        { receiver_user_id: userData.id },
+                    ],
                 },
-            })
+            });
+
+            if (!transaction)
+                throw new TRPCError({
+                    code: 'UNAUTHORIZED',
+                    message: "Unauthorized request to delete transaction without being its sender or receiver.",
+                });
+
+            // Update sender's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: transaction.sender_user_id },
+                data: {
+                    balance: { increment: transaction.amount },
+                    expense: { decrement: transaction.amount },
+                },
+            });
+
+            // Update receiver's balance, income, expense and transactions list.
+            await prisma.users.update({
+                where: { id: transaction.receiver_user_id },
+                data: {
+                    balance: { decrement: transaction.amount },
+                    income: { decrement: transaction.amount },
+                },
+            });
 
             return transaction;
         }),

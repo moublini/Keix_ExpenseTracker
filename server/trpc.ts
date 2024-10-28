@@ -9,15 +9,13 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 export const protectedProcedure = t.procedure.use(async (opts) => {
     const { ctx } = opts;
-    if (ctx?.userId === undefined)
+    if (!ctx.userData)
         throw new TRPCError({
             message: "No user has been found.",
             code: "UNAUTHORIZED",
         });
 
     return opts.next({
-        ctx: {
-            userId: ctx.userId,
-        }
+        ctx,
     });
 })

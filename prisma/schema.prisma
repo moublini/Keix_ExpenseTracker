@@ -11,8 +11,12 @@ model transactions {
   id      Int    @id @default(autoincrement())
   name    String
   amount  Float
-  user_id Int?
-  users   users? @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sender_user_id Int @default(0)
+  receiver_user_id Int @default(0)
+  timestamp DateTime
+
+  sender_user  users @relation("Sender", fields: [sender_user_id], references: [id])
+  receiver_user  users @relation("Receiver", fields: [receiver_user_id], references: [id])
 }
 
 model users {
@@ -22,5 +26,7 @@ model users {
   balance      Float          @default(0) @db.Real
   income       Float          @default(0) @db.Real
   expense      Float          @default(0) @db.Real
-  transactions transactions[]
+  
+  sender_transactions transactions[] @relation("Sender")
+  receiver_transactions transactions[] @relation("Receiver")
 }

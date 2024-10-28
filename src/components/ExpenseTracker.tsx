@@ -1,6 +1,7 @@
 import { Transaction } from "./Transaction";
 import { TransactionForm } from "./TransactionForm";
 import { trpc } from '../trpc';
+import { transactions } from "@prisma/client";
 
 export function ExpenseTracker() {
     const transactions = trpc.getUserTransactions.useQuery();
@@ -26,7 +27,7 @@ export function ExpenseTracker() {
 
             <section className="flex flex-col gap-4">
                 <hgroup>
-                    <h2>YOUR BALANCE</h2>
+                    <h2>YOUR BALANCE {user.data?.balance && user.data.balance < 0 && "Dumbass, you broke!" }</h2>
                     <p className="text-3xl"><strong>${user.data?.balance}</strong></p>
                 </hgroup>
 
@@ -46,18 +47,25 @@ export function ExpenseTracker() {
                 <h2 className="text-lg font-semibold border-b-2">History</h2>
                 <ul className="flex flex-col gap-2">
                     {
-                        transactions.data?.map?.((transaction, index) => (
-                            <li key={`history-item-${index}`} >
-                                <Transaction onDelete={() => { deleteTransaction.mutate(transaction.id) }} obj={transaction}></Transaction>
-                            </li>
-                        ))
+                        transactions.data?.map?.((transaction, index) => {
+                            const mappedTransaction: transactions = {
+                                ...transaction,
+                                timestamp: new Date(transaction.timestamp),
+                            };
+
+                            return (
+                                <li key={`history-item-${index}`} >
+                                    <Transaction onDelete={() => { deleteTransaction.mutate(transaction.id) }} obj={mappedTransaction}></Transaction>
+                                </li>
+                            );
+                        })
                     }
                 </ul>
             </section>
 
             <section className="flex flex-col gap-4">
                 <h2 className="text-lg font-semibold border-b-2">Add new transaction</h2>
-                <TransactionForm onSubmit={(name, amount) => { addTransaction.mutate({ name, amount }) }}></TransactionForm>
+                <TransactionForm onSubmit={(name, amount, receiver_user_id) => { addTransaction.mutate({ name, amount, receiver_user_id }) }}></TransactionForm>
             </section>
         </div>
     )
