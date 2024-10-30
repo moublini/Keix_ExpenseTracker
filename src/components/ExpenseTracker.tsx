@@ -72,7 +72,7 @@ export function ExpenseTracker() {
 
             <section className="flex flex-col gap-4">
                 <h2 className="text-lg font-semibold border-b-2">Add new transaction</h2>
-                <TransactionForm onSubmit={(name, amount, receiver_user_id) => { addTransaction.mutate({ name, amount, receiver_user_id }) }}></TransactionForm>
+                <TransactionForm onSubmit={data => addTransaction.mutate(data) }></TransactionForm>
             </section>
         </div>
     )

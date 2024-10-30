@@ -13,9 +13,9 @@ function App() {
       httpBatchLink({
         url: 'http://localhost:8080',
         headers: ()  => {
-          const authorization = localStorage.getItem('keix_auth_credentials') ?? '';
-
-          return { authorization: `Basic ${authorization}` };
+          const authorization = localStorage.getItem('keix_auth_jwt') ?? '';
+          console.log('auth', authorization)
+          return { authorization: `Bearer ${authorization}` };
         },
       }),
     ]

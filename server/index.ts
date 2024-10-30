@@ -5,9 +5,32 @@ import { protectedProcedure, publicProcedure, router } from "./trpc";
 import { prisma } from './prisma_client';
 import { createContext } from './context';
 import { TRPCError } from '@trpc/server';
+import { sign } from 'jsonwebtoken';
 
 const appRouter = router({
     /* Public Procedures */
+    login: publicProcedure
+        .input(z.object({
+            name: z.string(),
+            password: z.string(),
+        }))
+        .mutation(async ( opts ) => {
+            console.log('g');
+            const { name, password } = opts.input;
+            const user = await prisma.users.findFirst({
+                where: { name, password },
+            });
+            if (!user)
+                throw new TRPCError({
+                    code: 'BAD_REQUEST',
+                    message: 'User not found with sent incredentials.',
+                });
+
+            const { password: _, ...userData } = user;
+            const token = sign(userData, process.env.JWT_SECRET_KEY);
+            return token;
+        }),
+
     getManyTransactions: publicProcedure
         .query(async () => await prisma.transactions.findMany()),
 
@@ -101,7 +124,7 @@ const appRouter = router({
                     expense: { increment: transaction.amount },
                 },
             });
-            
+
             // Update receiver's balance, income, expense and transactions list.
             await prisma.users.update({
                 where: { id: transaction.receiver_user_id },

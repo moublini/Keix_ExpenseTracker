@@ -2,11 +2,11 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from './prisma_client';
 import { CreateHTTPContextOptions } from "@trpc/server/adapters/standalone";
 import { users } from "@prisma/client";
+import { decode, JwtPayload } from "jsonwebtoken";
 
-async function handleBasicAuth(credentials: string) {
-    if (!credentials) return null;
+type UserData = Omit<users, 'password'>
 
-    const [ name, password ] = credentials.split(':')
+async function fetchUserData(name: string, password: string): Promise<UserData> {
     const user = await prisma.users.findFirst({
         where: { name, password },
     });
@@ -21,6 +21,24 @@ async function handleBasicAuth(credentials: string) {
     return userData;
 }
 
+async function handleBasicAuth(credentials: string): Promise<UserData> {
+    const [ name, password ] = credentials.split(':')
+    return fetchUserData(name, password);
+}
+
+async function handleJWTAuth(token: string): Promise<UserData> {
+    type Payload = JwtPayload & { name: string, password: string };
+
+    const payload = decode(token, { json: true }) as Payload | null;
+    if (!payload) 
+        throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Incorrect JWT passed.',
+        });
+
+    return fetchUserData(payload.name, payload.password);
+}
+
 export async function createContext({ req }: CreateHTTPContextOptions) {
     const { authorization } = req.headers;
     if (!authorization)
@@ -30,11 +48,18 @@ export async function createContext({ req }: CreateHTTPContextOptions) {
         });
 
     const [ authType, credentials ] = authorization.split(' ');
+    if (!credentials) {
+        return {};
+    }
 
-    let userData: Omit<users, 'password'> | null;
+    let userData: UserData;
     switch (authType) {
         case 'Basic':
             userData = await handleBasicAuth(credentials);
+            break;
+
+        case 'Bearer':
+            userData = await handleJWTAuth(credentials);
             break;
 
         default:
@@ -42,11 +67,6 @@ export async function createContext({ req }: CreateHTTPContextOptions) {
                 code: 'BAD_REQUEST',
                 message: 'Authorization type is not supported.',
             });
-    }
-
-    if (!userData) {
-        console.log('dati invalidi.')
-        return {}
     }
 
     return {
