@@ -2,23 +2,33 @@ import { trpc } from "../trpc";
 import { SubmitHandler, useForm } from "react-hook-form";
 
 export interface TransactionFormProps {
-    onSubmit: SubmitHandler<TransactionFormSchema>;
+    onSubmit: (data: TransactionFormData) => void;
 }
 
-export interface TransactionFormSchema {
+export interface TransactionFormData {
     name: string,
     amount: number,
     receiver_user_id: number,
 }
 
 export function TransactionForm({ onSubmit }: TransactionFormProps) {
-    const { register, handleSubmit, formState } = useForm<TransactionFormSchema>();
+    const { register, handleSubmit, formState } = useForm<TransactionFormData>();
     const { errors } = formState;
     const users = trpc.getManyUsers.useQuery();
     const currentUser = trpc.getUserInfo.useQuery();
 
+    const submitHandler: SubmitHandler<TransactionFormData> = data => {
+        const parsedData: TransactionFormData = {
+            name: data.name,
+            amount: +data.amount,
+            receiver_user_id: +data.receiver_user_id,
+        };
+
+        onSubmit(parsedData);
+    }
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(submitHandler)}>
             <label htmlFor="transaction-name">Text</label>
             <input {...register('name', { required: true })} id="transaction-name" className="rounded-md p-2 border w-full mb-2" type="text" placeholder="Enter text..." />
             {errors.name && (<span className="text-red-300">Transaction name is required.</span>)}
