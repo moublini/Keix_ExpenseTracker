@@ -12,23 +12,14 @@ export function Auth() {
     const createUser = trpc.addUser.useMutation()
     const token = trpc.login.useMutation();
 
-    const registerUser = (name: string, password: string) => createUser.mutateAsync({ name, password });
-    const loginUser = (jwt: string) => {
-        if (!jwt) {
-            console.log('no token data');
-            return;
-        }
+    const onSubmit: SubmitHandler<AuthFormSchema> = async data => {
+        if (data.isRegistering)
+            createUser.mutateAsync({ name: data.name, password: data.password })
+
+        const jwt = await token.mutateAsync({ name: data.name, password: data.password });
+        if (!jwt) return;
 
         localStorage.setItem('keix_auth_jwt', jwt);
-    }
-
-    const onSubmit: SubmitHandler<AuthFormSchema> = async data => {
-        const jwt = await token.mutateAsync({ name: data.name, password: data.password });
-
-        if (data.isRegistering)
-            await registerUser(data.name, data.password);
-
-        loginUser(jwt);
         window.location.reload();
     }
 
